@@ -1,17 +1,27 @@
-import { FastifyReply, FastifyRequest } from "fastify";
-import { prisma } from "../../lib/prisma";
+ import type { FastifyReply, FastifyRequest } from "fastify";
 import bcrypt from "bcryptjs";
-import { registerSchema, loginSchema } from "../schemas/auth.schemas";
+
+import { prisma } from "../../lib/prisma";
+import { ok, fail } from "../utils/http-response";
 
 export async function register(req: FastifyRequest, reply: FastifyReply) {
-  const data = registerSchema.parse(req.body);
+  // Aqui assumimos que a rota já validou o body com Zod
+  const data = req.body as {
+    name: string;
+    email: string;
+    password: string;
+  };
 
   const userExists = await prisma.user.findUnique({
     where: { email: data.email },
+    select: { id: true },
   });
 
   if (userExists) {
-    return reply.status(409).send({ message: "E-mail já cadastrado." });
+    return fail(reply, "E-mail já cadastrado.", {
+      statusCode: 409,
+      code: "EMAIL_ALREADY_EXISTS",
+    });
   }
 
   const passwordHash = await bcrypt.hash(data.password, 10);
@@ -31,23 +41,34 @@ export async function register(req: FastifyRequest, reply: FastifyReply) {
     },
   });
 
-  return reply.status(201).send(user);
+  return ok(reply, user, { statusCode: 201 });
 }
 
 export async function login(req: FastifyRequest, reply: FastifyReply) {
-  const data = loginSchema.parse(req.body);
+  // Aqui assumimos que a rota já validou o body com Zod
+  const data = req.body as {
+    email: string;
+    password: string;
+  };
 
   const user = await prisma.user.findUnique({
     where: { email: data.email },
   });
 
   if (!user) {
-    return reply.status(401).send({ message: "Credenciais inválidas." });
+    return fail(reply, "Credenciais inválidas.", {
+      statusCode: 401,
+      code: "INVALID_CREDENTIALS",
+    });
   }
 
-  const ok = await bcrypt.compare(data.password, user.password);
-  if (!ok) {
-    return reply.status(401).send({ message: "Credenciais inválidas." });
+  const passwordOk = await bcrypt.compare(data.password, user.password);
+
+  if (!passwordOk) {
+    return fail(reply, "Credenciais inválidas.", {
+      statusCode: 401,
+      code: "INVALID_CREDENTIALS",
+    });
   }
 
   const token = await reply.jwtSign(
@@ -55,5 +76,5 @@ export async function login(req: FastifyRequest, reply: FastifyReply) {
     { subject: user.id, expiresIn: "7d" }
   );
 
-  return reply.send({ token });
+  return ok(reply, { token });
 }
