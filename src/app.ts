@@ -5,8 +5,8 @@ import swagger from "@fastify/swagger";
 import swaggerUI from "@fastify/swagger-ui";
 
 import { authRoutes } from "./http/routes/auth.routes";
-import { auth } from "./http/middlewares/auth";
-import { roleGuard } from "./http/middlewares/role";
+import { adminRoutes } from "./http/routes/admin.routes";
+import { userRoutes } from "./http/routes/user.routes";
 import { env } from "./env";
 
 export const app = fastify({ logger: true });
@@ -35,28 +35,9 @@ app.register(swaggerUI, {
 /* -------------------- ROTAS -------------------- */
 
 app.register(authRoutes);
+app.register(userRoutes);
+app.register(adminRoutes);
 
 app.get("/health", async () => {
   return { status: "ok" };
 });
-
-/**
- * Rota protegida
- * - exige JWT válido
- * - exige role USER ou ADMIN
- */
-app.get(
-  "/me",
-  {
-    preHandler: [
-      auth,
-      roleGuard(["USER", "ADMIN"]),
-    ],
-  },
-  async (req) => {
-    return {
-      userId: req.user.sub,
-      role: req.user.role,
-    };
-  }
-);
