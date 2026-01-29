@@ -1,4 +1,4 @@
-# REST API Pro
+ # REST API Pro
 
 API REST em **Node.js + TypeScript** com **Fastify**, **Prisma (PostgreSQL)**, **JWT Auth**, **Swagger (/docs)** e **Docker**.  
 Projeto estruturado para produção, com rotas organizadas (controllers, middlewares, schemas) e autenticação pronta.
